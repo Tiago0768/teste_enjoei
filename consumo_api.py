@@ -4,18 +4,17 @@ import requests
 import json
 from datetime import datetime
 
-# Conexão com o banco de dados
 con_sd = cxO.connect('tiago_teste/tiago_teste#desenv@dbaesabi.teste.com.br:1521/tiago_teste')
 cursor_sd = con_sd.cursor()
 base_api = "teste_teste"
 
 # Verifica se a tabela existe
 cursor_sd.execute("SELECT COUNT(*) FROM user_tables WHERE table_name = :1", (base_api.upper(),))
-table_exists = cursor_sd.fetchone()[0]
+regra_base_existente = cursor_sd.fetchone()[0]
 
 # Cria a tabela se não existir
-if not table_exists:
-    create_table_query = f"""
+if not regra_base_existente:
+    criação_tabela = f"""
     CREATE TABLE {base_api} (
         id VARCHAR2(20),
         userId VARCHAR2(100),
@@ -23,15 +22,16 @@ if not table_exists:
         products VARCHAR2(4000)
     )
     """
-    cursor_sd.execute(create_table_query)
+    cursor_sd.execute(criação_tabela)
 
+
+# definicao da data de inicio e data fim
 start_date = "2019-12-10"
 end_date = "2020-10-10"
 
-# Define o URL corretamente
 url = f"https://fakestoreapi.com/carts?startdate={start_date}&enddate={end_date}"
 
-# Obtém os dados da API e verifica se é um JSON válido
+# Passo da verificação onde acontece o consumo da api e reconhecimento de json
 response = requests.get(url)
 if response.status_code == 200:
     try:
@@ -47,15 +47,15 @@ if response.status_code == 200:
             products_str = json.dumps(row['products'])
             
             cursor_sd.execute(f"SELECT COUNT(*) FROM {base_api} WHERE userId = :1", (row['userId'],))
-            result = cursor_sd.fetchone()[0]
+            resultado = cursor_sd.fetchone()[0]
 
-            if result > 0:
-                update_query = f"""
+            if resultado > 0:
+                atualização_dos_dados = f"""
                 UPDATE {base_api}
                 SET id = :1, "date" = TO_DATE(:3, 'YYYY-MM-DD'), products = :4
                 WHERE userId = :2
                 """
-                cursor_sd.execute(update_query, (row['id'], row['userId'], row['date'].strftime('%Y-%m-%d'), products_str))
+                cursor_sd.execute(atualização_dos_dados, (row['id'], row['userId'], row['date'].strftime('%Y-%m-%d'), products_str))
             else:
                 insert_query = f"INSERT INTO {base_api} (id, userId, \"date\", products) VALUES (:1, :2, TO_DATE(:3, 'YYYY-MM-DD'), :4)"
                 cursor_sd.execute(insert_query, (row['id'], row['userId'], row['date'].strftime('%Y-%m-%d'), products_str))
@@ -66,6 +66,5 @@ if response.status_code == 200:
 else:
     print(f"Erro ao acessar a API: Status code {response.status_code}")
 
-# Fecha a conexão
 cursor_sd.close()
 con_sd.close()

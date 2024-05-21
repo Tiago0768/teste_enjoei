@@ -28,7 +28,6 @@ response = requests.get(url)
 if response.status_code == 200:
     json_data = response.json()
 
-    # Cria o DataFrame a partir dos dados JSON
     df = spark.createDataFrame(json_data, schema=schema)
 
     # Converte a coluna 'date' para o formato de data
@@ -38,16 +37,15 @@ if response.status_code == 200:
     base_api = "teste_teste"
     df.createOrReplaceTempView(base_api)
 
-    # Verifica se a tabela existe
+    # Verificação de existencia da tabela
     if spark.catalog._jcatalog.tableExists(base_api):
         result = spark.sql(f"SELECT COUNT(*) FROM {base_api}").collect()[0][0]
     else:
         result = 0
 
-    # Converte a coluna 'products' para JSON string
     df = df.withColumn("products", col("products").cast("string"))
 
-    # Insere os dados na tabela ou atualiza se já existirem
+    # inserção de dados ou atualização caso a base exista
     if result > 0:
         df.write.mode("overwrite").format("hive").saveAsTable(base_api)
     else:
